@@ -1,38 +1,28 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::fmt;
 
 fn main() {
-    
-
     let scanners = read_scanners();
 
     println!("Scanners read: {}", scanners.len());
-
-    for s in scanners {
-        println!("{:?}", s)
-    }
 }
 
 fn read_scanners() -> Vec<Scanner> {
     let mut scanners = Vec::new();
     let mut temp_points: Vec<Point> = Vec::new();
-    let mut last_scanner_num = 99;
-
-
-    let lines = lines_from_file("Input.txt");
+    
+    let mut lines = lines_from_file("Input.txt");
 
     let mut handle_line = |line: &str|  {
         let scan_start = "--- scanner ";
-        let mut scanner: Scanner = Scanner::new(last_scanner_num);
+        
         if line.starts_with(scan_start) {
 
             let scanner_nums: Vec<&str> = line.split(" ").collect();
             let scanner_num: u8 = scanner_nums.get(2).unwrap().parse::<u8>().unwrap();
+            let mut scanner: Scanner = Scanner::new(scanner_num);
 
-            last_scanner_num = scanner_num;
-            
             let collected_points = temp_points.drain(..);
 
             if collected_points.len() > 0 {
@@ -51,9 +41,13 @@ fn read_scanners() -> Vec<Scanner> {
         }
     };
 
+    lines.reverse();
+
     for l in lines {
         handle_line(&l);
-    }  
+    }
+
+    scanners.reverse();
     
     return scanners;
 }
