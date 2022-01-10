@@ -1,11 +1,12 @@
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::fmt;
 
 fn main() {
-    let mut scanners = Vec::new();
+    
 
-    read_scanners(&mut scanners);
+    let scanners = read_scanners();
 
     println!("Scanners read: {}", scanners.len());
 
@@ -14,43 +15,60 @@ fn main() {
     }
 }
 
-fn read_scanners(scanners: &mut Vec<Scanner>) -> () {
-    let read_result =  read_lines("src/Input.txt");
+fn read_scanners() -> Vec<Scanner> {
+    let mut scanners = Vec::new();
+    let mut temp_points: Vec<Point> = Vec::new();
+    let mut last_scanner_num = 99;
 
-    if let Ok(lines) = read_result {
-        
-        let mut line_num = 0;
-        for line_result in lines {
-            if let Ok(line) = line_result {
-                println!("Parsing line: {}", line);
 
-                let scan_start = "--- scanner ";
-                if line.starts_with(scan_start) {
+    let lines = lines_from_file("Input.txt");
 
-                    let scanner_nums: Vec<&str> = line.split(" ").collect();
-                    let scanner_num: u8 = scanner_nums.get(2).unwrap().parse::<u8>().unwrap();
-                    let scanner = Scanner::new(scanner_num);
-                    scanners.push(scanner);
+    let mut handle_line = |line: &str|  {
+        let scan_start = "--- scanner ";
+        let mut scanner: Scanner = Scanner::new(last_scanner_num);
+        if line.starts_with(scan_start) {
+
+            let scanner_nums: Vec<&str> = line.split(" ").collect();
+            let scanner_num: u8 = scanner_nums.get(2).unwrap().parse::<u8>().unwrap();
+
+            last_scanner_num = scanner_num;
+            
+            let collected_points = temp_points.drain(..);
+
+            if collected_points.len() > 0 {
+                for p in collected_points {
+                    scanner.add_point(p)
                 }
-            }
 
-            line_num += 1;
+                scanners.push(scanner);
+            }                       
+        } else if line.len() > 0 {
+            let coord_parts = line.split(",");
+            let mut point_parts = coord_parts.map(|t| t.parse::<i32>().unwrap());
+            let point = Point{ x: point_parts.next().unwrap(), y: point_parts.next().unwrap(), z: point_parts.next().unwrap() };
+
+            temp_points.push(point);
         }
+    };
 
-        println!("Num lines {}", line_num)
-    }
-    else if let Err(problem) = read_result {
-        println!("Problems: {}", problem);
-    }
+    for l in lines {
+        handle_line(&l);
+    }  
+    
+    return scanners;
 }
 
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-    where P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        Ok(io::BufReader::new(file).lines())
+
+fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
+    let file = File::open(filename).expect("no such file");
+    let buf = BufReader::new(file);
+    buf.lines()
+        .map(|l| l.expect("Could not parse line"))
+        .collect()
 }
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone, Copy)]
 struct Point {
     pub x: i32,
     pub y: i32,
@@ -73,11 +91,13 @@ struct Scanner {
 
 impl Scanner {
     pub fn new(num: u8) -> Scanner { 
-        println!("New called");
-            
         return Scanner {
             num: num , 
             points: Vec::new() 
         } 
+    }
+
+    pub fn add_point(&mut self, point: Point) {
+        self.points.push(Point { x: point.x, y: point.y, z: point.z })
     }    
 }
