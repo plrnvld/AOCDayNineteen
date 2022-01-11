@@ -6,6 +6,17 @@ fn main() {
     let scanners = read_scanners();
 
     println!("Scanners read: {}", scanners.len());
+
+    let point = Point{ x:4, y:1, z: 9 };
+
+
+    let all_rotations = point.all_point_rotations();
+
+    println!("Rotations");
+
+    for rot in all_rotations {
+        println!("{:?}", rot);
+    }
 }
 
 fn read_scanners() -> Vec<Scanner> {
@@ -52,7 +63,6 @@ fn read_scanners() -> Vec<Scanner> {
     return scanners;
 }
 
-
 fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
     let file = File::open(filename).expect("no such file");
     let buf = BufReader::new(file);
@@ -61,8 +71,7 @@ fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
         .collect()
 }
 
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 struct Point {
     pub x: i32,
     pub y: i32,
@@ -70,10 +79,46 @@ struct Point {
 }
 
 impl Point {
-    fn rot_x(&self) -> Point {
-        let new_point = Point { x: 1, y: 2, z: 3 };
+    fn rot_along_x(&self) -> Point {
+        return Point { x: self.x, y: -self.z, z: self.y };
+    }
 
-        return new_point;
+    fn rot_along_y(&self) -> Point {
+        return Point { x: -self.z, y: self.y, z: self.x };
+    }
+
+    fn rot_along_z(&self) -> Point {
+        return Point { x: -self.y, y: self.x, z: self.z };
+    }
+
+    fn all_point_rotations(&self) -> [Point; 24] {
+        let base_rotations: [fn(&Point) -> Point; 4] = [
+            |p| p.clone(),
+            |p| p.rot_along_x(),
+            |p| p.rot_along_x().rot_along_x(),
+            |p| p.rot_along_x().rot_along_x().rot_along_x()
+        ];
+
+        let secondary_rotations: [fn(Point) -> Point; 6] = [
+            |p| p.clone(),
+            |p| p.rot_along_z(),
+            |p| p.rot_along_z().rot_along_z(),
+            |p| p.rot_along_z().rot_along_z().rot_along_z(),
+            |p| p.rot_along_y(),
+            |p| p.rot_along_y().rot_along_y().rot_along_y(),
+        ];
+
+        let mut result_array: [Point; 24] = Default::default();
+
+        let mut index = 0;
+        for f1 in base_rotations {
+            for f2 in secondary_rotations {
+                result_array[index] = f2(f1(&self));
+                index += 1;
+            }
+        }
+
+        return result_array;
     }
 }
 
