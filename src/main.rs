@@ -1,6 +1,8 @@
+
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use array_tool::vec::*;
 
 static BASE_ROTATIONS: [fn(&Point) -> Point; 4] = [
     |p| p.clone(),
@@ -19,26 +21,35 @@ static SECONDARY_ROTATIONS: [fn(Point) -> Point; 6] = [
 ];
 
 fn main() {
-    let scanners = read_scanners();
+    let mut scanners = read_scanners();
 
     println!("Scanners read: {}", scanners.len());
 
-    let all_rotations = Point{ x:4, y:1, z: 9 }.all_point_rotations();
+    let all_fixed_points: Vec<Point> = Vec::new();
 
-    println!();
-    println!("Rotations");
+    scanners[0].fix_current_points();
 
-    for i in 0..24 {
-        let rot = get_rotated_points(i, &vec![Point{ x:4, y:1, z: 9 }])[0];
-        println!("{:?}", rot);
-    }
+    while scanners.iter().filter(|&s| !s.is_fixed()).count() > 0 {
+        let fixed = scanners.iter().filter(|&s| s.is_fixed());
+        let unfixed = scanners.iter().filter(|&s| !s.is_fixed());
+        
+        let find_scanner_to_fix = || -> (&Scanner, usize) {
+            for u in unfixed {
+                for f in fixed {
+                    for rot in 0..24 {
+                        if f.matches_with_scanner(u, rot) {
+                            return (u, rot);
+                        }
+                    }            
+                }
+            }
 
-    println!();
-
-    for rot in all_rotations {
-        println!("{:?}", rot);
+            panic!("No fixable scanner found");
+        };
     }
 }
+
+
 
 fn read_scanners() -> Vec<Scanner> {
     let mut scanners = Vec::new();
@@ -92,7 +103,7 @@ fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
         .collect()
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 struct Point {
     pub x: i32,
     pub y: i32,
@@ -146,18 +157,46 @@ fn get_rotated_points(index: usize, points: &Vec<Point>) -> Vec<Point> {
 #[derive(Debug)]
 struct Scanner {
     pub num: u8,
-    pub points: Vec<Point>
+    pub points: Vec<Point>,
+    pub fixed_points: Vec<Point>
 }
 
 impl Scanner {
     pub fn new(num: u8) -> Scanner { 
         return Scanner {
             num: num , 
-            points: Vec::new() 
+            points: Vec::new(),
+            fixed_points: Vec::new()
         } 
+    }
+
+    pub fn is_fixed(&self) -> bool {
+        return self.fixed_points.len() > 0;
     }
 
     pub fn add_point(&mut self, point: Point) {
         self.points.push(Point { x: point.x, y: point.y, z: point.z })
-    }    
+    }
+
+    pub fn set_fixed_points(&mut self, points_to_fix: &Vec<Point>) {
+        for p in points_to_fix {
+            self.fixed_points.push(p.clone());
+        }
+    }
+
+    pub fn fix_current_points(&mut self) {
+        let points_to_fix = &self.points;
+        for p in points_to_fix {
+            self.fixed_points.push(p.clone());
+        }
+    }
+
+    pub fn matches_with(&mut self, points: Vec<Point>)  -> bool {
+        return &self.fixed_points.intersect(points).len() >= &12;
+    }
+
+    pub fn matches_with_scanner(&mut self, scanner: &Scanner, index: usize) -> bool {
+        let points = get_rotated_points(index, &scanner.points);
+        return &self.fixed_points.intersect(points).len() >= &12;
+    }
 }
