@@ -29,24 +29,38 @@ fn main() {
 
     scanners[0].fix_current_points();
 
+    let mut fixed_scanners = vec!(&scanners[0]);
+
     while scanners.iter().filter(|&s| !s.is_fixed()).count() > 0 {
-        let fixed = scanners.iter().filter(|&s| s.is_fixed());
+        let fixed: Vec<&Scanner> = scanners.iter().filter(|&s| s.is_fixed()).collect();
         let unfixed = scanners.iter().filter(|&s| !s.is_fixed());
         
-        let find_scanner_to_fix = || -> (&Scanner, usize) {
-            for u in unfixed {
-                for f in fixed {
-                    for rot in 0..24 {
-                        if f.matches_with_scanner(u, rot) {
-                            return (u, rot);
-                        }
-                    }            
-                }
+        let mut matched = false;
+        
+        for u in unfixed {
+            let (matches, rot) = matches_with_any_fixed(&u, &fixed_scanners);
+            if (matches) {
+                println!("matching");
+                matched = true;
             }
+        }
 
-            panic!("No fixable scanner found");
-        };
+        if (!matched) {
+            panic!("No match!");
+        }
     }
+}
+
+fn matches_with_any_fixed(u:&Scanner, fixed: &Vec<&Scanner>) -> (bool, usize) {            
+    for f in fixed {
+        for rot in 0..24 {
+            if f.matches_with_scanner(u, rot) {
+                return (true, rot);
+            }
+        }            
+    }    
+
+    return (false, 99);
 }
 
 
@@ -195,8 +209,15 @@ impl Scanner {
         return &self.fixed_points.intersect(points).len() >= &12;
     }
 
-    pub fn matches_with_scanner(&mut self, scanner: &Scanner, index: usize) -> bool {
+    pub fn matches_with_scanner(&self, scanner: &Scanner, index: usize) -> bool {
         let points = get_rotated_points(index, &scanner.points);
-        return &self.fixed_points.intersect(points).len() >= &12;
+
+        // ################# Next up: translate two point on top of each other
+
+        let union_size = &self.fixed_points.intersect(points).len();
+
+        println!("Overlapping with {}", union_size);
+
+        return union_size >= &12;
     }
 }
