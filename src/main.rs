@@ -2,17 +2,38 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
+static BASE_ROTATIONS: [fn(&Point) -> Point; 4] = [
+    |p| p.clone(),
+    |p| p.rot_along_x(),
+    |p| p.rot_along_x().rot_along_x(),
+    |p| p.rot_along_x().rot_along_x().rot_along_x()
+];
+
+static SECONDARY_ROTATIONS: [fn(Point) -> Point; 6] = [
+    |p| p.clone(),
+    |p| p.rot_along_z(),
+    |p| p.rot_along_z().rot_along_z(),
+    |p| p.rot_along_z().rot_along_z().rot_along_z(),
+    |p| p.rot_along_y(),
+    |p| p.rot_along_y().rot_along_y().rot_along_y(),
+];
+
 fn main() {
     let scanners = read_scanners();
 
     println!("Scanners read: {}", scanners.len());
 
-    let point = Point{ x:4, y:1, z: 9 };
+    let all_rotations = Point{ x:4, y:1, z: 9 }.all_point_rotations();
 
-
-    let all_rotations = point.all_point_rotations();
-
+    println!();
     println!("Rotations");
+
+    for i in 0..24 {
+        let rot = get_rotated_points(i, &vec![Point{ x:4, y:1, z: 9 }])[0];
+        println!("{:?}", rot);
+    }
+
+    println!();
 
     for rot in all_rotations {
         println!("{:?}", rot);
@@ -92,34 +113,34 @@ impl Point {
     }
 
     fn all_point_rotations(&self) -> [Point; 24] {
-        let base_rotations: [fn(&Point) -> Point; 4] = [
-            |p| p.clone(),
-            |p| p.rot_along_x(),
-            |p| p.rot_along_x().rot_along_x(),
-            |p| p.rot_along_x().rot_along_x().rot_along_x()
-        ];
-
-        let secondary_rotations: [fn(Point) -> Point; 6] = [
-            |p| p.clone(),
-            |p| p.rot_along_z(),
-            |p| p.rot_along_z().rot_along_z(),
-            |p| p.rot_along_z().rot_along_z().rot_along_z(),
-            |p| p.rot_along_y(),
-            |p| p.rot_along_y().rot_along_y().rot_along_y(),
-        ];
-
-        let mut result_array: [Point; 24] = Default::default();
+        let mut rotated_points: [Point; 24] = Default::default();
 
         let mut index = 0;
-        for f1 in base_rotations {
-            for f2 in secondary_rotations {
-                result_array[index] = f2(f1(&self));
+        for f1 in BASE_ROTATIONS {
+            for f2 in SECONDARY_ROTATIONS {
+                rotated_points[index] = f2(f1(&self));
                 index += 1;
             }
         }
 
-        return result_array;
+        return rotated_points;
     }
+}
+
+fn get_rotated_points(index: usize, points: &Vec<Point>) -> Vec<Point> {
+    let base_index: usize = index / 6;
+    let secondary_index: usize = index % 6;
+
+    let f_1 = BASE_ROTATIONS[base_index];
+    let f_2 = SECONDARY_ROTATIONS[secondary_index];
+
+    let mut rotated_points: Vec<Point> = Vec::new();
+
+    for p in points {
+        rotated_points.push(f_2(f_1(p)))
+    }
+
+    return rotated_points;
 }
 
 #[derive(Debug)]
