@@ -2,6 +2,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use core::result::IntoIter;
 use array_tool::vec::*;
 
 static BASE_ROTATIONS: [fn(&Point) -> Point; 4] = [
@@ -39,13 +40,13 @@ fn main() {
         
         for u in unfixed {
             let (matches, rot) = matches_with_any_fixed(&u, &fixed_scanners);
-            if (matches) {
+            if matches {
                 println!("matching");
                 matched = true;
             }
         }
 
-        if (!matched) {
+        if !matched {
             panic!("No match!");
         }
     }
@@ -54,7 +55,7 @@ fn main() {
 fn matches_with_any_fixed(u:&Scanner, fixed: &Vec<&Scanner>) -> (bool, usize) {            
     for f in fixed {
         for rot in 0..24 {
-            if f.matches_with_scanner(u, rot) {
+            if f.matches_with_scanner(u, rot).len() >= 12 {
                 return (true, rot);
             }
         }            
@@ -209,15 +210,13 @@ impl Scanner {
         return &self.fixed_points.intersect(points).len() >= &12;
     }
 
-    pub fn matches_with_scanner(&self, scanner: &Scanner, index: usize) -> bool {
+    pub fn matches_with_scanner(&self, scanner: &Scanner, index: usize) -> Vec<Point> {
         let points = get_rotated_points(index, &scanner.points);
 
-        // ################# Next up: translate two point on top of each other
+        let union:Vec<Point> = self.fixed_points.intersect(points);
 
-        let union_size = &self.fixed_points.intersect(points).len();
+        println!("Overlapping with {}", union.len());
 
-        println!("Overlapping with {}", union_size);
-
-        return union_size >= &12;
+        return union;
     }
 }
