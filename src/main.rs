@@ -25,58 +25,71 @@ fn main() {
 
     println!("Scanners read: {}", scanners.len());
 
-    let all_fixed_points: Vec<Point> = Vec::new();
+    let mut all_fixed_points: Vec<Point> = Vec::new();
 
     let mut fixed_scanners: Vec<Scanner> = vec!(scanners.pop().unwrap());
     fixed_scanners[0].fix_current_points();
 
-    let mut unfixed_scanners: Vec<Scanner> = Vec::from(scanners);
-
-    println!("fixed scanners {}", fixed_scanners.len());
-    println!("unfixed scanners {}", unfixed_scanners.len());
-
+    let mut unfixed_scanners: Vec<Scanner> = Vec::from(scanners).to_vec();
+    
     while &unfixed_scanners.len() > &0 {
         let mut matched = false;
+        let mut current_matching_points: Vec<Point> = Vec::new();
+        // let mut current_matching_scanner = 99;
 
-        let num_before_retain = unfixed_scanners.len();
-        unfixed_scanners.retain(|s| {
-            let (matches, rot) = matches_with_any_fixed(&s, &fixed_scanners);
-            if matches {
-                println!("  matching");
-                matched = true;
-                //
-            }
+        for f in fixed_scanners.to_vec() {
+            unfixed_scanners.retain(|s| {
+                let vec_nums: Vec<String> = fixed_scanners.iter().map(|f|f.num.to_string()).collect();
+                let vec_text = vec_nums.join(",");
+                let intersecting_points = matches_with_fixed(&s, &f, &vec_text);
+                matched = intersecting_points.len() > 0;
+                if matched {
+                    println!("  matching");
+                    
+                    for ip in intersecting_points {
+                        if !all_fixed_points.contains(&ip) {
+                            all_fixed_points.push(ip);
+                        }
 
-            return !matched;
-        });
+                        current_matching_points.push(ip);                   
+                    }
 
-        let num_after_retain = unfixed_scanners.len();
-        
-        if num_before_retain == num_after_retain {
-            panic!("Everything retained, no match!");
+                    let scanner_to_fix = Scanner { 
+                        num: s.num, 
+                        points: current_matching_points.to_vec(), 
+                        fixed_points: current_matching_points.to_vec() 
+                    };
+                    fixed_scanners.push(scanner_to_fix);
+                }
+
+                return !matched;
+            });
         }
+
+        fixed_scanners.remove(0);
     }
 
-    
+    println!("Finished: all fixed points: {}", all_fixed_points.len());
 }
 
-fn matches_with_any_fixed(u:&Scanner, fixed: &Vec<Scanner>) -> (bool, usize) {            
-    for f in fixed {
-        for rot in 0..24 {
-            if f.matches_with_scanner(u, rot).len() >= 12 {
-                return (true, rot);
-            }
-        }            
-    }    
+fn matches_with_fixed(u:&Scanner, f: &Scanner, vec_text: &str) -> Vec<Point> {
+    println!("Comparing {} with {}: all {}", u.num, f.num, vec_text);
+        
+    for rot in 0..24 {
+        let intersecting_points: Vec<Point> = f.matches_with_scanner(u, rot);
+        if intersecting_points.len() >= 12 {
+            return intersecting_points;
+        }
+    }             
 
-    return (false, 99);
+    return Vec::new();
 }
 
 fn read_scanners() -> Vec<Scanner> {
     let mut scanners = Vec::new();
     let mut temp_points: Vec<Point> = Vec::new();
     
-    let mut lines = lines_from_file("Input.txt");
+    let mut lines = lines_from_file("Example.txt");
 
     let mut handle_line = |line: &str|  {
         let scan_start = "--- scanner ";
@@ -169,7 +182,7 @@ fn get_rotated_points(index: usize, points: &Vec<Point>) -> Vec<Point> {
     return rotated_points;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Scanner {
     pub num: u8,
     pub points: Vec<Point>,
@@ -205,7 +218,7 @@ impl Scanner {
     pub fn matches_with_scanner(&self, other_scanner: &Scanner, index: usize) -> Vec<Point> {
         let other_points = get_rotated_points(index, &other_scanner.points);
 
-        println!("Comparing scanner {} with scanner {}", &self.num, &other_scanner.num);
+        // println!("Comparing scanner {} with scanner {}", &self.num, &other_scanner.num);
         for self_point in &self.points {
             for other in &other_points {
                 let translation = &self_point.sub(other);
@@ -220,7 +233,8 @@ impl Scanner {
                 let overlapping = intersection.len();
 
                 if overlapping > 1 {
-                    println!("Overlapping with {}", overlapping);
+                    //print!("{}|", overlapping)
+                    //println!("  Overlapping with {}", overlapping);
                 }
 
                 if overlapping >= 12 {
