@@ -2,7 +2,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use core::result::IntoIter;
 use array_tool::vec::*;
 
 static BASE_ROTATIONS: [fn(&Point) -> Point; 4] = [
@@ -28,26 +27,37 @@ fn main() {
 
     let all_fixed_points: Vec<Point> = Vec::new();
 
-    scanners[0].fix_current_points();
+    let mut fixed_scanners: Vec<Scanner> = vec!(scanners.pop().unwrap());
+    fixed_scanners[0].fix_current_points();
 
-    let mut fixed_scanners = vec!(scanners.pop().unwrap());
-    let mut unfixed_scanners = Vec::from(scanners);
+    let mut unfixed_scanners: Vec<Scanner> = Vec::from(scanners);
+
+    println!("fixed scanners {}", fixed_scanners.len());
+    println!("unfixed scanners {}", unfixed_scanners.len());
 
     while &unfixed_scanners.len() > &0 {
         let mut matched = false;
-        
-        for u in &unfixed_scanners {
-            let (matches, rot) = matches_with_any_fixed(&u, &fixed_scanners);
-            if matches {
-                println!("matching");
-                matched = true;
-            }
-        }
 
-        if !matched {
-            panic!("No match!");
+        let num_before_retain = unfixed_scanners.len();
+        unfixed_scanners.retain(|s| {
+            let (matches, rot) = matches_with_any_fixed(&s, &fixed_scanners);
+            if matches {
+                println!("  matching");
+                matched = true;
+                //
+            }
+
+            return !matched;
+        });
+
+        let num_after_retain = unfixed_scanners.len();
+        
+        if num_before_retain == num_after_retain {
+            panic!("Everything retained, no match!");
         }
     }
+
+    
 }
 
 fn matches_with_any_fixed(u:&Scanner, fixed: &Vec<Scanner>) -> (bool, usize) {            
@@ -61,8 +71,6 @@ fn matches_with_any_fixed(u:&Scanner, fixed: &Vec<Scanner>) -> (bool, usize) {
 
     return (false, 99);
 }
-
-
 
 fn read_scanners() -> Vec<Scanner> {
     let mut scanners = Vec::new();
@@ -143,20 +151,6 @@ impl Point {
     fn sub(&self, other: &Point) -> Point {
         return Point { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z };
     }
-
-    fn all_point_rotations(&self) -> [Point; 24] {
-        let mut rotated_points: [Point; 24] = Default::default();
-
-        let mut index = 0;
-        for f1 in BASE_ROTATIONS {
-            for f2 in SECONDARY_ROTATIONS {
-                rotated_points[index] = f2(f1(&self));
-                index += 1;
-            }
-        }
-
-        return rotated_points;
-    }
 }
 
 fn get_rotated_points(index: usize, points: &Vec<Point>) -> Vec<Point> {
@@ -185,24 +179,14 @@ struct Scanner {
 impl Scanner {
     pub fn new(num: u8) -> Scanner { 
         return Scanner {
-            num: num, 
+            num, 
             points: Vec::new(),
             fixed_points: Vec::new()
         } 
     }
 
-    pub fn is_fixed(&self) -> bool {
-        return self.fixed_points.len() > 0;
-    }
-
     pub fn add_point(&mut self, point: Point) {
         self.points.push(Point { x: point.x, y: point.y, z: point.z })
-    }
-
-    pub fn set_fixed_points(&mut self, points_to_fix: &Vec<Point>) {
-        for p in points_to_fix {
-            self.fixed_points.push(p.clone());
-        }
     }
 
     pub fn fix_current_points(&mut self) {
@@ -212,32 +196,36 @@ impl Scanner {
         }
     }
 
-    pub fn matches_with(&mut self, points: Vec<Point>)  -> bool {
-        return &self.fixed_points.intersect(points).len() >= &12;
+    pub fn set_fixed_points(&mut self, points_to_fix: &Vec<Point>) {
+        for p in points_to_fix {
+            self.fixed_points.push(p.clone());
+        }
     }
 
     pub fn matches_with_scanner(&self, other_scanner: &Scanner, index: usize) -> Vec<Point> {
-        let self_first_point = &self.points[0];
         let other_points = get_rotated_points(index, &other_scanner.points);
 
-        for other in &other_points {
-            let translation = &self_first_point.sub(other);
-            let mut translated_others: Vec<Point> = Vec::new();
-            
-            for to_translate in &other_points {
-                translated_others.push(to_translate.add(translation));
-            }
+        println!("Comparing scanner {} with scanner {}", &self.num, &other_scanner.num);
+        for self_point in &self.points {
+            for other in &other_points {
+                let translation = &self_point.sub(other);
+                let mut translated_others: Vec<Point> = Vec::new();
+                
+                for to_translate in &other_points {
+                    translated_others.push(to_translate.add(translation));
+                }
 
-            let union:Vec<Point> = self.fixed_points.intersect(translated_others);
+                let intersection:Vec<Point> = self.fixed_points.intersect(translated_others);
 
-            let overlapping = union.len();
+                let overlapping = intersection.len();
 
-            if overlapping > 1 {
-                println!("Overlapping with {}", overlapping);
-            }
+                if overlapping > 1 {
+                    println!("Overlapping with {}", overlapping);
+                }
 
-            if overlapping >= 12 {
-                return union;
+                if overlapping >= 12 {
+                    return intersection;
+                }
             }
         }
 
