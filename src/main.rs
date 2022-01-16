@@ -19,6 +19,8 @@ static SECONDARY_ROTATIONS: [fn(Point) -> Point; 6] = [
     |p| p.rot_along_y().rot_along_y().rot_along_y(),
 ];
 
+static EMPTY_POINT: Point = Point { x:0, y: 0, z:0 }; 
+
 fn main() {
     let mut scanners = read_scanners();
 
@@ -29,16 +31,16 @@ fn main() {
     let mut unfixed_scanners: Vec<Scanner> = Vec::from(scanners).to_vec();
     
     while &unfixed_scanners.len() > &0 {
-        let mut matched = false;
-        
         for f in fixed_scanners.to_vec() {
             unfixed_scanners.retain(|u| {
-                matched = scanners_overlap(u, &f);
+                let (matched, scanner_center, scanner_points) = scanners_overlap(u, &f);
                 if matched {
                     let scanner_to_fix = Scanner { 
                         num: u.num, 
-                        points: u.points.to_vec()
+                        points: scanner_points,
+                        location: Some(scanner_center)
                     };
+
                     fixed_scanners.push(scanner_to_fix);
                 }
 
@@ -52,23 +54,25 @@ fn main() {
     println!("Finished: all fixed points!");
 }
 
-fn scanners_overlap(s1:&Scanner, s2: &Scanner) -> bool {
+fn scanners_overlap(s1:&Scanner, s2: &Scanner) -> (bool, Point, Vec<Point>) {
     println!("Comparing {} with {}", s1.num, s2.num);
         
-    for rot1 in 0..24 {
-        let rotated_points1 = get_rotated_points(rot1, &s1.points);
+    //for rot1 in 0..24 {
+        let rotated_points1 = &s1.points;
+        //let rotated_points1 = get_rotated_points(rot1, &s1.points);
 
         for rot2 in 0..24 {
             let rotated_points2 = get_rotated_points(rot2, &s2.points);
 
-            if points_overlap(&rotated_points1, &rotated_points2) {
+            let (overlapping, scanner_center) = points_overlap(&rotated_points1, &rotated_points2);
+            if overlapping {
                 println!("  Matching!");
-                return true;
+                return (true, scanner_center, rotated_points2);
             }
         }
-    }             
+    //}             
 
-    return false;
+    return (false, EMPTY_POINT, Vec::new());
 }
 
 
@@ -108,6 +112,10 @@ impl Point {
     fn sub(&self, other: &Point) -> Point {
         return Point { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z };
     }
+
+    fn neg(&self) -> Point {
+        return Point { x: -self.x, y: -self.y, z: -self.z };
+    }
 }
 
 fn get_rotated_points(index: usize, points: &Vec<Point>) -> Vec<Point> {
@@ -126,7 +134,7 @@ fn get_rotated_points(index: usize, points: &Vec<Point>) -> Vec<Point> {
     return rotated_points;
 }
 
-fn points_overlap(points1: &Vec<Point>, points2: &Vec<Point>) -> bool {
+fn points_overlap(points1: &Vec<Point>, points2: &Vec<Point>) -> (bool, Point) {
     for p1 in points1 {
         for p2 in points2 {
             let translation = &p1.sub(&p2);
@@ -146,26 +154,29 @@ fn points_overlap(points1: &Vec<Point>, points2: &Vec<Point>) -> bool {
             }
 
             if overlapping >= 12 {
-                return true;
+                let scanner_center = p1.add(&p2.neg());
+                return (true, scanner_center);
             }
         }
     }
     
-    return false;
+    return (false, EMPTY_POINT) ;
 }
 
 
 #[derive(Debug, Clone)]
 struct Scanner {
     pub num: u8,
-    pub points: Vec<Point>
+    pub points: Vec<Point>,
+    pub location: Option<Point>
 }
 
 impl Scanner {
     pub fn new(num: u8) -> Scanner { 
         return Scanner {
             num, 
-            points: Vec::new()
+            points: Vec::new(),
+            location: None
         } 
     }
 
