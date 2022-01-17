@@ -43,7 +43,7 @@ fn main() {
                     let scanner_to_fix = Scanner { 
                         num: u.num, 
                         points: beacon_points.to_vec(),
-                        location: Some(scanner_center),
+                        location: scanner_center,
                         was_compared_with: Vec::new()
                     };
 
@@ -167,7 +167,7 @@ fn points_overlap(points1: &Vec<Point>, points2: &Vec<Point>) -> (bool, Point, V
 struct Scanner {
     pub num: u8,
     pub points: Vec<Point>,
-    pub location: Option<Point>,
+    pub location: Point,
     pub was_compared_with: Vec<u8>
 }
 
@@ -176,7 +176,7 @@ impl Scanner {
         Scanner {
             num, 
             points: Vec::new(),
-            location: None,
+            location: EMPTY_POINT,
             was_compared_with: Vec::new()
         }
     }
