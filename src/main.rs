@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use array_tool::vec::*;
+use itertools::Itertools;
 
 static BASE_ROTATIONS: [fn(&Point) -> Point; 4] = [
     |p| p.clone(),
@@ -64,27 +65,37 @@ fn main() {
     }
 
     println!("Finished: all scanners fixed! {} beacons!", all_beacons.len());
+
+    let mut max_dist: i32 = 0;
+    let v: Vec<Scanner> = fixed_scanners;
+    for vpair in v.into_iter().combinations(2) {
+        let first: Point = vpair.first().unwrap().location;
+        let second: Point = vpair.last().unwrap().location;
+
+        let curr_dist = first.manhattan_dist(&second);
+
+        if curr_dist > max_dist {
+            max_dist = curr_dist;
+        }
+    }
+
+    println!("Max distance {}!", max_dist);
 }
 
 fn scanners_overlap(s1fixed:&mut Scanner, s2unfixed: &Scanner) -> (bool, Point, Vec<Point>) {
     if !s1fixed.was_compared_with.contains(&s2unfixed.num) {
         println!("Comparing {} with {}", s1fixed.num, s2unfixed.num);
         s1fixed.was_compared_with.push(s2unfixed.num);
-            
-        //for rot1 in 0..24 {
-            let rotated_fixed = &s1fixed.points;
-            //let rotated_points1 = get_rotated_points(rot1, &s1.points);
+        
+        for rot in 0..24 {
+            let rotated_unfixed = get_rotated_points(rot, &s2unfixed.points);
 
-            for rot2 in 0..24 {
-                let rotated_unfixed = get_rotated_points(rot2, &s2unfixed.points);
-
-                let (overlapping, scanner_center, translated_unfixed_points) = points_overlap(&rotated_fixed, &rotated_unfixed);
-                if overlapping {
-                    println!("  Matching!");
-                    return (true, scanner_center, translated_unfixed_points);
-                }
+            let (overlapping, scanner_center, translated_unfixed_points) = points_overlap(&s1fixed.points, &rotated_unfixed);
+            if overlapping {
+                println!("  Matching!");
+                return (true, scanner_center, translated_unfixed_points);
             }
-        //}
+        }        
     }
 
     return (false, EMPTY_POINT, Vec::new());
@@ -120,6 +131,10 @@ impl Point {
 
     fn neg(&self) -> Point {
         Point { x: -self.x, y: -self.y, z: -self.z }
+    }
+
+    fn manhattan_dist(&self, other: &Point) -> i32 {
+        (self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()
     }
 }
 
@@ -189,7 +204,7 @@ impl Scanner {
 fn read_scanners() -> Vec<Scanner> {
     let mut scanners = Vec::new();
     let mut temp_points: Vec<Point> = Vec::new();    
-    let mut lines = lines_from_file("Input.txt");
+    let mut lines = lines_from_file("Example.txt");
 
     let mut handle_line = |line: &str| {
         if line.starts_with("--- scanner ") {

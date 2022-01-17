@@ -8,3 +8,4 @@ edition = "2021"
 
 [dependencies]
 array_tool = "1.0.3"
+itertools = "0.10.2"
