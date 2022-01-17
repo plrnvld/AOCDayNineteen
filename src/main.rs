@@ -28,7 +28,9 @@ fn main() {
 
     println!("Scanners read: {}", scanners.len());
     
-    let mut fixed_scanners: Vec<Scanner> = vec!(scanners.pop().unwrap());
+    let mut fixed_scanners: Vec<Scanner> = vec!(Scanner { num: scanners[0].num, location: EMPTY_POINT, points: scanners[0].points.to_vec(), was_compared_with: Vec::new() });
+
+    scanners.remove(0);
 
     for p in &fixed_scanners[0].points {
         all_beacons.push(p.clone());
@@ -60,11 +62,14 @@ fn main() {
                 return !matched;
             });
         }
-
-        fixed_scanners.remove(0);
     }
 
     println!("Finished: all scanners fixed! {} beacons!", all_beacons.len());
+
+    for fix_print in &fixed_scanners {
+        let s_center = fix_print.clone();
+        println!("Scanner {} has center {:?}", s_center.num, s_center.location);
+    }    
 
     let mut max_dist: i32 = 0;
     let v: Vec<Scanner> = fixed_scanners;
@@ -129,10 +134,6 @@ impl Point {
         Point { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
     }
 
-    fn neg(&self) -> Point {
-        Point { x: -self.x, y: -self.y, z: -self.z }
-    }
-
     fn manhattan_dist(&self, other: &Point) -> i32 {
         (self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()
     }
@@ -169,7 +170,7 @@ fn points_overlap(points1: &Vec<Point>, points2: &Vec<Point>) -> (bool, Point, V
             let overlapping = intersection.len();
 
             if overlapping >= 12 {
-                let scanner_center = p1.add(&p2.neg());
+                let scanner_center = translation.clone();
                 return (true, scanner_center, translated_p2s);
             }
         }
@@ -204,7 +205,7 @@ impl Scanner {
 fn read_scanners() -> Vec<Scanner> {
     let mut scanners = Vec::new();
     let mut temp_points: Vec<Point> = Vec::new();    
-    let mut lines = lines_from_file("Example.txt");
+    let mut lines = lines_from_file("Input.txt");
 
     let mut handle_line = |line: &str| {
         if line.starts_with("--- scanner ") {
